@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poet — AI Poem Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0b0e;
+            --bg-elevated: #161222;
+            --card: #1c1726;
+            --card-hover: #231e30;
+            --border: #2e2640;
+            --border-light: #3d3355;
+            --fg: #e8dcc8;
+            --fg-muted: #9a8f82;
+            --fg-dim: #6b6060;
+            --accent: #c9a55c;
+            --accent-hover: #dbb76e;
+            --accent-glow: rgba(201,165,92,0.15);
+            --user-bubble: #2a2040;
+            --poet-bubble: #1a1520;
+            --poem-bg: #14101c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Lora', Georgia, serif;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #particles-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .app-header {
+            background: linear-gradient(180deg, rgba(22,18,34,0.98) 0%, rgba(13,11,14,0.95) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            backdrop-filter: blur(12px);
+        }
+
+        .brand-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--accent), #8b6914);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; color: #0d0b0e;
+            box-shadow: 0 0 20px var(--accent-glow);
+            animation: quillPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes quillPulse {
+            0%, 100% { box-shadow: 0 0 20px var(--accent-glow); }
+            50% { box-shadow: 0 0 30px rgba(201,165,92,0.3); }
+        }
+
+        .brand-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 1.5rem;
+            letter-spacing: 0.05em;
+            background: linear-gradient(135deg, var(--accent), #e8d5a8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brand-subtitle {
+            font-size: 0.75rem;
+            color: var(--fg-muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .app-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--bg-elevated);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-section {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-label {
+            font-family: 'Playfair Display', serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--fg-dim);
+            margin-bottom: 0.75rem;
+        }
+
+        .style-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .style-btn {
+            padding: 0.6rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            color: var(--fg-muted);
+            font-family: 'Lora', serif;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .style-btn:hover {
+            border-color: var(--border-light);
+            color: var(--fg);
+            background: var(--card-hover);
+        }
+
+        .style-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .style-btn .style-icon {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.75rem;
+        }
+
+        .history-list::-webkit-scrollbar { width: 4px; }
+        .history-list::-webkit-scrollbar-track { background: transparent; }
+        .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .history-item {
+            padding: 0.7rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 0.4rem;
+        }
+
+        .history-item:hover { background: var(--card); }
+
+        .history-item-title {
+            font-size: 0.85rem;
+            color: var(--fg);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item-style {
+            font-size: 0.7rem;
+            color: var(--fg-dim);
+            margin-top: 0.2rem;
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar { width: 6px; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .message {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            animation: messageIn 0.4s ease-out;
+            max-width: 85%;
+        }
+
+        .message.user {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-avatar {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .msg-avatar.poet-avatar {
+            background: linear-gradient(135deg, var(--accent), #8b6914);
+            color: #0d0b0e;
+        }
+
+        .msg-avatar.user-avatar {
+            background: var(--border-light);
+            color: var(--fg-muted);
+        }
+
+        .msg-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .msg-name {
+            font-size: 0.7rem;
+            color: var(--fg-dim);
+            margin-bottom: 0.35rem;
+            letter-spacing: 0.05em;
+        }
+
+        .message.user .msg-name { text-align: right; }
+
+        .msg-bubble {
+            padding: 0.85rem 1.1rem;
+            border-radius: 14px;
+            font-size: 0.92rem;
+            line-height: 1.65;
+        }
+
+        .message.poet .msg-bubble {
+            background: var(--poet-bubble);
+            border: 1px solid var(--border);
+            border-top-left-radius: 4px;
+        }
+
+        .message.user .msg-bubble {
+            background: var(--user-bubble);
+            border: 1px solid var(--border-light);
+            border-top-right-radius: 4px;
+        }
+
+        .poem-card {
+            background: var(--poem-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .poem-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        }
+
+        .poem-card .poem-style-tag {
+            display: inline-block;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            border: 1px solid rgba(201,165,92,0.3);
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            margin-bottom: 0.75rem;
+        }
+
+        .poem-text {
+            font-family: 'Lora', serif;
+            font-style: italic;
+            font-size: 0.95rem;
+            line-height: 2;
+            color: var(--fg);
+            white-space: pre-line;
+        }
+
+        .poem-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .poem-action-btn {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--fg-muted);
+            font-family: 'Lora', serif;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .poem-action-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 0.5rem 0;
+        }
+
+        .typing-dot {
+            width: 7px; height: 7px;
+            background: var(--fg-dim);
+            border-radius: 50%;
+            animation: typingBounce 1.4s ease-in-out infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        .chat-input-area {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(22,18,34,0.9) 0%, rgba(13,11,14,0.98) 100%);
+            backdrop-filter: blur(12px);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            color: var(--fg);
+            font-family: 'Lora', serif;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s ease;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.5;
+        }
+
+        .chat-input::placeholder { color: var(--fg-dim); }
+        .chat-input:focus { border-color: var(--accent); }
+
+        .send-btn {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), #8b6914);
+            border: none;
+            color: #0d0b0e;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .send-btn:active { transform: scale(0.95); }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .mobile-styles {
+            display: none;
+            padding: 0.75rem 1rem;
+            overflow-x: auto;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated);
+        }
+
+        .mobile-styles::-webkit-scrollbar { display: none; }
+
+        .mobile-style-pill {
+            flex-shrink: 0;
+            padding: 0.4rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: var(--card);
+            color: var(--fg-muted);
+            font-family: 'Lora', serif;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .mobile-style-pill.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--card);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 0.65rem 1.5rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            z-index: 100;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+
+        .toast.visible { transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .mobile-styles { display: flex; }
+            .message { max-width: 92%; }
+            .app-header { padding: 0.6rem 1rem; }
+            .chat-messages { padding: 1rem; }
+            .chat-input-area { padding: 0.75rem 1rem; }
+        }
+
+        .bg-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-blob-1 {
+            width: 400px; height: 400px;
+            background: rgba(201,165,92,0.05);
+            top: -100px; right: -100px;
+            animation: blobDrift1 20s ease-in-out infinite;
+        }
+
+        .bg-blob-2 {
+            width: 300px; height: 300px;
+            background: rgba(100,60,140,0.06);
+            bottom: -80px; left: -80px;
+            animation: blobDrift2 25s ease-in-out infinite;
+        }
+
+        @keyframes blobDrift1 {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-40px, 30px); }
+        }
+
+        @keyframes blobDrift2 {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, -40px); }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            opacity: 0.6;
+        }
+
+        .empty-state h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--fg);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            color: var(--fg-muted);
+            font-size: 0.9rem;
+            max-width: 360px;
+            line-height: 1.6;
+        }
+
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            justify-content: center;
+        }
+
+        .suggestion-chip {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: var(--card);
+            color: var(--fg-muted);
+            font-family: 'Lora', serif;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .suggestion-chip:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .poem-line {
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .poem-line.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles-canvas" aria-hidden="true"></canvas>
+    <div class="bg-blob bg-blob-1" aria-hidden="true"></div>
+    <div class="bg-blob bg-blob-2" aria-hidden="true"></div>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="brand-icon" aria-hidden="true"><i class="fas fa-feather-pointed"></i></div>
+            <div>
+                <div class="brand-title">POET</div>
+                <div class="brand-subtitle">AI Poem Generator</div>
+            </div>
+            <div style="flex:1"></div>
+            <button id="clear-btn" class="poem-action-btn" title="Clear conversation" aria-label="Clear conversation">
+                <i class="fas fa-rotate-right"></i> New Chat
+            </button>
+        </header>
+
+        <div class="app-main">
+            <aside class="sidebar" aria-label="Poem settings and history">
+                <div class="sidebar-section">
+                    <div class="sidebar-label">Poem Style</div>
+                    <div class="style-grid" id="style-grid">
+                        <button class="style-btn active" data-style="free" aria-pressed="true"><span class="style-icon"><i class="fas fa-wind"></i></span>Free Verse</button>
+                        <button class="style-btn" data-style="rhyming" aria-pressed="false"><span class="style-icon"><i class="fas fa-music"></i></span>Rhyming</button>
+                        <button class="style-btn" data-style="haiku" aria-pressed="false"><span class="style-icon"><i class="fas fa-leaf"></i></span>Haiku</button>
+                        <button class="style-btn" data-style="limerick" aria-pressed="false"><span class="style-icon"><i class="fas fa-face-grin-beam"></i></span>Limerick</button>
+                        <button class="style-btn" data-style="ode" aria-pressed="false"><span class="style-icon"><i class="fas fa-landmark"></i></span>Ode</button>
+                        <button class="style-btn" data-style="sonnet" aria-pressed="false"><span class="style-icon"><i class="fas fa-heart"></i></span>Sonnet</button>
+                    </div>
+                </div>
+                <div class="sidebar-section" style="padding-bottom:0.5rem"><div class="sidebar-label">Recent Poems</div></div>
+                <div class="history-list" id="history-list">
+                    <div style="text-align:center;padding:2rem 0;color:var(--fg-dim);font-size:0.8rem;">No poems yet. Start a conversation!</div>
+                </div>
+            </aside>
+
+            <section class="chat-area" aria-label="Chat with Poet">
+                <div class="mobile-styles" id="mobile-styles">
+                    <button class="mobile-style-pill active" data-style="free">Free Verse</button>
+                    <button class="mobile-style-pill" data-style="rhyming">Rhyming</button>
+                    <button class="mobile-style-pill" data-style="haiku">Haiku</button>
+                    <button class="mobile-style-pill" data-style="limerick">Limerick</button>
+                    <button class="mobile-style-pill" data-style="ode">Ode</button>
+                    <button class="mobile-style-pill" data-style="sonnet">Sonnet</button>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="empty-state" id="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-feather-pointed"></i></div>
+                        <h2>Welcome to Poet</h2>
+                        <p>Describe a feeling, scene, or idea, and I will craft a poem for you. Choose a style from the sidebar or let me decide.</p>
+                        <div class="suggestion-chips">
+                            <button class="suggestion-chip" data-prompt="A lonely lighthouse on a stormy night">Lonely lighthouse</button>
+                            <button class="suggestion-chip" data-prompt="The warmth of a childhood memory">Childhood warmth</button>
+                            <button class="suggestion-chip" data-prompt="Autumn leaves falling in a quiet garden">Autumn garden</button>
+                            <button class="suggestion-chip" data-prompt="The feeling of hope after a long struggle">Hope after struggle</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <textarea class="chat-input" id="chat-input" placeholder="Describe what you want a poem about..." rows="1" aria-label="Poem description input"></textarea>
+                        <button class="send-btn" id="send-btn" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" role="alert"></div>
+
+    <script>
+    // Particle System
+    (function initParticles() {
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const PARTICLE_COUNT = 60;
+
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        resize();
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor() { this.reset(); this.y = Math.random() * canvas.height; }
+            reset() {
+                this.x = Math.random() * canvas.width; this.y = canvas.height + 10;
+                this.size = Math.random() * 2 + 0.5; this.speedY = -(Math.random() * 0.3 + 0.1);
+                this.speedX = (Math.random() - 0.5) * 0.15; this.opacity = Math.random() * 0.4 + 0.1;
+                this.wobbleAmp = Math.random() * 30 + 10; this.wobbleSpeed = Math.random() * 0.005 + 0.002;
+                this.phase = Math.random() * Math.PI * 2; this.life = 0;
+            }
+            update() {
+                this.life++; this.y += this.speedY;
+                this.x += this.speedX + Math.sin(this.life * this.wobbleSpeed + this.phase) * 0.3;
+                if (this.y < -20 || this.x < -20 || this.x > canvas.width + 20) this.reset();
+            }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(201,165,92,${this.opacity})`; ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate);
+        }
+        animate();
+    })();
+
+    // Poem Generation Engine
+    const PoemEngine = {
+        themeKeywords: {
+            nature: ['tree','flower','river','mountain','ocean','forest','bird','sky','rain','sun','moon','star','wind','leaf','garden','bloom','spring','autumn','winter','summer','sea','lake','field','meadow','cloud','storm','dawn','dusk','sunset','sunrise','nature','earth','animal','butterfly','rose','petal','creek','stream','hill','valley','desert','sand','snow','ice','fire','wave','coral','reef','jungle','wolf','hawk','eagle','deer'],
+            love: ['love','heart','kiss','embrace','passion','desire','beloved','romance','together','forever','tender','devotion','affection','soul','entwined','wedding','marry','partner','spouse','crush','adore','cherish','longing','yearn','intimate','warmth of','hold me','miss you','darling','dear','valentine','anniversary'],
+            sorrow: ['sad','loss','grief','pain','tear','cry','mourn','weep','sorrow','lament','broken','fade','wither','shadow','empty','alone','lonely','miss','gone','death','funeral','goodbye','farewell','depart','absence','hollow','ache','suffer','regret','melancholy','depression','despair','heartbreak','abandon'],
+            hope: ['hope','dream','light','bright','rise','shine','believe','faith','tomorrow','future','new','begin','start','grow','soar','fly','aspire','courage','strength','resilient','overcome','heal','renew','rebirth','dawn','possibility','wish','optimism','inspire','uplift','persevere','endure'],
+            time: ['time','moment','hour','day','year','past','memory','remember','forget','clock','eternity','fleeting','pass','change','yesterday','tomorrow','history','aging','old','young','generation','era','century','decade','season','antique','legacy','nostalgia','reminisce','transient','impermanence'],
+            journey: ['road','path','walk','travel','journey','wander','explore','discover','adventure','map','destination','step','mile','horizon','beyond','voyage','pilgrimage','quest','expedition','trek','hike','sail','navigate','compass','trail','wayfare','roam','migrate','odyssey','crossing']
+        },
+        couplets: {
+            nature: [["The river winds through valleys deep","Where ancient secrets fall asleep"],["A gentle rain begins to fall","And answers every forest's call"],["The morning paints the sky with gold","A story waiting to be told"],["The willow dips its branches low","Where quiet waters gently flow"],["The mountain stands against the sky","While eagles circle soaring high"],["A single blossom brave and bright","Illuminates the fading light"],["The forest speaks in rustling leaves","The song that every season weaves"],["Beneath a canopy of green","A hidden world remains unseen"],["The meadow drinks the morning dew","And wears it like a gem anew"],["As shadows stretch across the land","We walk where earth and sky are penned"],["The ocean sings its ancient song","A melody both fierce and long"],["Through corridors of oak and pine","The afternoon makes room for time"],["The desert wears a cloak of fire","A burning, breathless, vast desire"],["Each petal holds a drop of rain","A world of beauty born from pain"],["The hawk descends on silent wings","And to the earth its shadow clings"],["A coral reef of vibrant hue","Beneath the ocean's veil of blue"]],
+            love: [["Your name is carried on the breeze","A whisper moving through the trees"],["I found the world within your eyes","A universe that never dies"],["Two hearts that beat as only one","A symphony the stars have spun"],["Your laughter builds a summer day","And chases every cloud away"],["I trace the map upon your face","Each line a story of your grace"],["My soul remembers what it knew","A love that always feels brand new"],["The distance melts beneath your gaze","And time surrenders all its days"],["Your hand in mine, the world grows still","A promise held beyond the hill"],["I hold your silence like a prayer","And find my whole world waiting there"],["We are the answer time forgot","A love the universe has sought"],["Your voice is music to my bones","The only song my heart has known"],["I built a home inside your smile","And plan to stay a little while"]],
+            sorrow: [["The room remembers what was lost","And counts the hours, counts the cost"],["A silence where your voice should be","Echoes of what was you and me"],["The seasons change but grief remains","Like softly falling, endless rains"],["I gather pieces of the past","And wonder how long they will last"],["Each photograph a locked closed door","To rooms I cannot visit more"],["The rain insists on sympathy","While I become the empty sea"],["I carry shadows in my chest","Where once the light had come to rest"],["The mirror shows a stranger's face","Who moved into my empty space"],["The words we never got to say","Now haunt the margins of the day"],["A hollow fills the space you left","Of all my burdens, most bereft"],["The clock ticks louder than before","Since you walked out and closed the door"],["I write your name then cross it out","That is what sorrow is about"]],
+            hope: [["Beyond the storm, the sky is wide","And every broken wing can glide"],["A single candle breaks the dark","And lights the way with just a spark"],["Tomorrow wears a brighter face","And leaves behind this shadowed place"],["The seed remembers how to grow","Even beneath the deepest snow"],["We build with what remains in hand","And find the strength to make a stand"],["The dawn is never far away","It only waits for us to stay"],["Hope is a language all hearts speak","When days are tired and moments weak"],["Even the longest night will end","And broken paths will twist and bend"],["From ashes, something new can rise","A light can always fill the skies"],["Courage grows in quiet places","And hope survives the darkest phases"],["The future calls in gentle tones","A promise etched in ancient stones"],["We plant our dreams in frozen ground","And trust that life will come around"]],
+            time: [["The hours slip through open hands","Like water over desert sands"],["We measure life in fading light","And count the steps from dawn to night"],["The clock unwinds our careful plans","And writes with its indifferent hands"],["Yesterday lives in borrowed rooms","Where memory tends its fading blooms"],["Time writes its story on our face","Each line a record of our pace"],["The moment passes, gold to dust","And leaves us searching for what was"],["We are but passengers of time","Moving to an unseen chime"],["Eternity is made of now","This single breath, this whispered vow"],["The years fold into one embrace","And leave their traces on my face"],["A decade passes in a glance","And leaves us trapped in memory's dance"],["The present is a razor's edge","On which we balance, time's true pledge"],["What once was future now is past","And nothing golden seems to last"]],
+            journey: [["The road extends beyond the hill","And calls the restless heart to fill"],["I pack my dreams and walk away","Toward the breaking of the day"],["Each step a story yet untold","Each mile a memory to hold"],["The horizon shifts with every stride","And opens corridors so wide"],["I follow where the wind may lead","Through every valley, every mead"],["The path is narrow, steep, and long","But every journey starts with song"],["We wander not because we're lost","But because the road is worth the cost"],["A thousand miles begin with one","And end beneath a foreign sun"],["The compass spins but still I go","Through twilight rain and midnight snow"],["I left behind the life I knew","And found the world awaiting, too"],["Each turning holds a new surprise","A distant shore, a foreign sky"],["The traveler carries nothing more","Than what their open heart is for"]]
+        },
+        closings: {
+            nature: [["And in the silence, we are whole","Connected to the earth, the soul"],["So let the wild things have their say","For nature's voice will never stray"],["The world goes on, and so must we","Part of its vast eternity"],["In every seed, a forest sleeps","In every shore, the ocean keeps"]],
+            love: [["And in the end, love is the thread","That weaves through all that has been said"],["Two souls, one story, ever told","A love more precious than all gold"],["Forever is a word we say","When love refuses to decay"],["Love is the only truth I know","The only light that makes me glow"]],
+            sorrow: [["And so we learn to carry on","In quiet hours before the dawn"],["The ones we love never depart","They live within the human heart"],["In grief, we find what love has taught","That every loss was dearly bought"],["Some wounds no medicine can mend","But time and patience, in the end"]],
+            hope: [["For every winter has its spring","And every storm, its peace to bring"],["The best is always yet to come","When hope and courage beat as one"],["Rise up, dear heart, and take the lead","The world is planted with the seed"],["And when you think the light is gone","Look up — the stars still carry on"]],
+            time: [["And when the final hour descends","We'll know that time was well our friend"],["The clock may stop, the sun may set","But moments lived are never spent"],["So hold each second close and near","For time is love made crystal clear"],["What time takes, memory restores","And love remains when time is yours"]],
+            journey: [["And at the journey's gentle end","We find the road was also friend"],["The destination matters less","Than all the miles of tenderness"],["We travel not to just arrive","But to remember we're alive"],["Home is not a place at all","But every road that makes us whole"]]
+        },
+        keywordTemplates: {
+            opening: ["When I think of {word}, I begin to see","Oh {word}, you stir something deep in me","There is a {word} that calls my name","In the language of {word}, I find my breath","Let me speak of {word}, if I may"],
+            middle: ["And {word} becomes the melody","Where {word} and memory entwine","The {word} unfolds before my eyes","I carry {word} within my chest","And so {word} lingers in the air"],
+            closing: ["For {word} will always remain","And {word} echoes through the years","In {word}, I find my peace at last","And {word} will never fade away","So let {word} be my final word"]
+        },
+        haikus: {
+            nature: ["Still water reflects\nMountains standing tall and proud\nSilence speaks the most","Cherry blossoms fall\nSoftly on the quiet stream\nSpring breathes once again","Autumn wind arrives\nGolden leaves beneath my feet\nThe world lets go too","Mountain peak in cloud\nThe hawk circles, searching, free\nSky holds everything","First snow on the pine\nEach flake a small universe\nWinter has arrived","Desert at midday\nMirage upon the horizon\nSand remembers rain"],
+            love: ["Your hand touches mine\nTwo heartbeats become only one\nThe world disappears","In your gentle eyes\nI find home and wanderlust\nBoth at once, complete","Love speaks without sound\nA glance across the crowded room\nEverything shifts now","Your laughter fills air\nSunshine woven into sound\nI am warmed by you"],
+            sorrow: ["An empty chair waits\nNo one sits here anymore\nDust collects like tears","Rain against the glass\nThe sound of what cannot be\nWeeping with the sky","Silence fills the room\nYour voice still echoes within\nBut no one replies","Autumn comes again\nLeaves depart just like you did\nBranches hold the sky"],
+            hope: ["After the long night\nThe first ray breaks through the clouds\nI am still here, breathing","From cracked earth, a seed\nPushes upward toward the light\nLife insists, persists","A candle is lit\nSmall flame against the great dark\nBut the dark retreats","Tomorrow will come\nBringing what I cannot guess\nI open my hands"],
+            time: ["Clock hands never stop\nEach tick a small departure\nNow becomes just then","Seasons cycle through\nThe same yet never the same\nTime's peculiar gift","Gray hair in the glass\nYouth looks back from far away\nBoth are truly me"],
+            journey: ["One step, then one more\nThe path reveals itself by walking\nNot by standing still","Dust upon my shoes\nHorizon always ahead\nI walk, therefore I am","The road bends from sight\nWhat waits there I cannot know\nI walk anyway"]
+        },
+        limericks: {
+            nature: ["A river that flowed through the glen\nRan faster and faster, but then\nIt met a great rock\nWhich gave it a shock\nAnd flowed through the valley again.","A magnificent old oak tree\nWas home to a bumblebee\nWho sang in the rain\nWith musical strain\nAs proud as a bee could be.","A mountain that touched the blue sky\nWas admired by every passerby\nIt stood tall and grand\nO'er all of the land\nAnd never was heard to sigh."],
+            love: ["A lover who wrote heartfelt notes\nSealed every one inside their coats\nThey read them each day\nIn their own quiet way\nAnd smiled at the words they wrote.","Two hearts that were meant to entwine\nFound each other right on time\nWith a glance and a smile\nThey walked down the aisle\nAnd celebrated with wine."],
+            sorrow: ["A teardrop that fell in the night\nReflected the pale moonlight\nIt carried a name\nAnd whispered the same\nA story of sorrowful plight."],
+            hope: ["A dreamer who reached for the stars\nNever minded the distance or scars\nThey climbed and they fell\nBut they'd always yell\nI'll make it — yes, yes, by far!"],
+            time: ["A clock that had stopped at midday\nHad nothing remaining to say\nIt sat on the shelf\nJust talking to itself\nWhile time ticked the rest of the day."],
+            journey: ["A traveler who roamed far and wide\nTook every new road in their stride\nThey walked through the rain\nAnd smiled through the pain\nWith the whole world their compass and guide."]
+        },
+        usedCouplets: {},
+        detectThemes(input) {
+            const lower = input.toLowerCase(); const scores = {};
+            for (const [theme, keywords] of Object.entries(this.themeKeywords)) {
+                scores[theme] = 0;
+                for (const kw of keywords) { if (lower.includes(kw)) scores[theme] += kw.length; }
+            }
+            const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            if (sorted[0][1] === 0) {
+                if (lower.match(/dark|night|black|shadow|cold/)) return ['sorrow', 'nature'];
+                if (lower.match(/happy|joy|smile|laugh/)) return ['hope', 'love'];
+                if (lower.match(/old|remember|memory|ago/)) return ['time', 'sorrow'];
+                if (lower.match(/go|move|away|far|find/)) return ['journey', 'hope'];
+                return ['nature', 'hope'];
+            }
+            return [sorted[0][0], sorted[1][1] > 0 ? sorted[1][0] : sorted[0][0]];
+        },
+        extractKeywords(input) {
+            const stopWords = new Set(['a','an','the','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','shall','can','to','of','in','for','on','with','at','by','from','about','into','through','during','before','after','above','below','between','out','off','over','under','again','further','then','once','here','there','when','where','why','how','all','both','each','few','more','most','other','some','such','no','nor','not','only','own','same','so','than','too','very','just','because','as','until','while','but','and','or','if','it','its','i','me','my','we','our','you','your','he','him','his','she','her','they','them','their','this','that','these','those','what','which','who','whom','write','poem','about','make','please','something','want','tell','give','create','generate','compose','describe','poetry']);
+            return input.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w)).slice(0, 3);
+        },
+        pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+        pickCouplets(theme, count) {
+            if (!this.usedCouplets[theme]) this.usedCouplets[theme] = new Set();
+            if (this.couplets[theme].filter((_, i) => !this.usedCouplets[theme].has(i)).length < count) this.usedCouplets[theme] = new Set();
+            const indices = []; const result = []; const poolArr = this.couplets[theme];
+            while (result.length < count && result.length < poolArr.length) {
+                const idx = Math.floor(Math.random() * poolArr.length);
+                if (!indices.includes(idx)) { indices.push(idx); result.push(poolArr[idx]); this.usedCouplets[theme].add(idx); }
+            }
+            return result;
+        },
+        pickClosing(theme) {
+            if (!this.usedCouplets[theme + '_close']) this.usedCouplets[theme + '_close'] = new Set();
+            if (this.closings[theme].filter((_, i) => !this.usedCouplets[theme + '_close'].has(i)).length === 0) this.usedCouplets[theme + '_close'] = new Set();
+            const idx = Math.floor(Math.random() * this.closings[theme].length);
+            this.usedCouplets[theme + '_close'].add(idx);
+            return this.closings[theme][idx];
+        },
+        insertKeywordLine(lines, keywords, position) {
+            if (keywords.length === 0) return lines;
+            const word = keywords[Math.floor(Math.random() * keywords.length)];
+            const newLine = this.pickRandom(this.keywordTemplates[position]).replace('{word}', word);
+            const insertPos = position === 'opening' ? 0 : position === 'closing' ? lines.length : Math.floor(lines.length / 2);
+            lines.splice(insertPos, 0, newLine); return lines;
+        },
+        generateFreeVerse(input) {
+            const [primary] = this.detectThemes(input); const keywords = this.extractKeywords(input);
+            const couplets = this.pickCouplets(primary, 2 + Math.floor(Math.random() * 2)); let lines = [];
+            for (const c of couplets) { lines.push(c[Math.floor(Math.random() * 2)]); if (Math.random() > 0.5) lines.push(c[1]); }
+            lines.push(this.pickClosing(primary)[Math.floor(Math.random() * 2)]);
+            if (keywords.length > 0 && Math.random() > 0.3) this.insertKeywordLine(lines, keywords, 'middle');
+            return { lines, style: 'Free Verse', theme: primary };
+        },
+        generateRhyming(input) {
+            const [primary] = this.detectThemes(input); const keywords = this.extractKeywords(input);
+            const couplets = this.pickCouplets(primary, 3); let lines = [];
+            for (const c of couplets) { lines.push(c[0]); lines.push(c[1]); }
+            const closing = this.pickClosing(primary); lines.push(closing[0]); lines.push(closing[1]);
+            if (keywords.length > 0 && Math.random() > 0.4) this.insertKeywordLine(lines, keywords, 'opening');
+            return { lines, style: 'Rhyming Verse', theme: primary };
+        },
+        generateHaiku(input) {
+            const [primary] = this.detectThemes(input); const keywords = this.extractKeywords(input);
+            let haiku = this.pickRandom(this.haikus[primary] || this.haikus.nature);
+            let lines = typeof haiku === 'string' ? haiku.split('\n') : haiku;
+            if (keywords.length > 0 && Math.random() > 0.5) { const word = keywords[0]; const li = Math.floor(Math.random() * lines.length); const w = lines[li].split(' '); if (w.length > 2) { w[Math.floor(Math.random() * w.length)] = word; lines[li] = w.join(' '); } }
+            return { lines, style: 'Haiku', theme: primary };
+        },
+        generateLimerick(input) {
+            const [primary] = this.detectThemes(input); const keywords = this.extractKeywords(input);
+            let pool = this.limericks[primary] || this.limericks.nature; if (pool.length === 0) pool = this.limericks.nature;
+            let lines = this.pickRandom(pool).split('\n');
+            if (keywords.length > 0 && Math.random() > 0.6) { const w = lines[0].split(' '); if (w.length > 3) { w.splice(2, 1, keywords[0]); lines[0] = w.join(' '); } }
+            return { lines, style: 'Limerick', theme: primary };
+        },
+        generateOde(input) {
+            const [primary] = this.detectThemes(input); const keywords = this.extractKeywords(input);
+            const couplets = this.pickCouplets(primary, 3); let lines = [];
+            for (const c of couplets) { lines.push(c[0]); lines.push(c[1]); }
+            const extraCouplet = this.pickCouplets(primary, 1); if (extraCouplet.length > 0) lines.splice(4, 0, extraCouplet[0][0]);
+            const closing = this.pickClosing(primary); lines.push(closing[0]); lines.push(closing[1]);
+            if (keywords.length > 0) { this.insertKeywordLine(lines, keywords, 'opening'); if (keywords.length > 1) this.insertKeywordLine(lines, [keywords[1]], 'closing'); }
+            return { lines, style: 'Ode', theme: primary };
+        },
+        generateSonnet(input) {
+            const [primary, secondary] = this.detectThemes(input); const keywords = this.extractKeywords(input);
+            let lines = [];
+            for (const c of this.pickCouplets(primary, 2)) { lines.push(c[0]); lines.push(c[1]); }
+            for (const c of this.pickCouplets(secondary, 2)) { lines.push(c[0]); lines.push(c[1]); }
+            const extra = this.pickCouplets(primary, 1); if (extra.length > 0) { lines.push(extra[0][0]); lines.push(extra[0][1]); }
+            const closing = this.pickClosing(primary); lines.push(closing[0]); lines.push(closing[1]);
+            lines = lines.slice(0, 14);
+            while (lines.length < 14) { const f = this.pickCouplets(primary, 1); if (f.length > 0) lines.push(f[0][0]); }
+            if (keywords.length > 0) { this.insertKeywordLine(lines, keywords, 'opening'); lines = lines.slice(0, 14); }
+            return { lines, style: 'Sonnet', theme: primary };
+        },
+        generate(input, style = 'free') {
+            switch (style) {
+                case 'rhyming': return this.generateRhyming(input); case 'haiku': return this.generateHaiku(input);
+                case 'limerick': return this.generateLimerick(input); case 'ode': return this.generateOde(input);
+                case 'sonnet': return this.generateSonnet(input); default: return this.generateFreeVerse(input);
+            }
+        }
+    };
+
+    // Chat System
+    const ChatApp = {
+        messages: [], poems: [], currentStyle: 'free', isGenerating: false,
+        prePoem: ["Ah, what a beautiful thought. Let me shape it into verse...","The words stir within me. Here is what I have composed...","A compelling image. Allow me to render it in poetry...","That speaks to something deep. Consider this...","The muse whispers. Here is my offering...","I feel the weight of those words. This is what they inspire..."],
+        postPoem: ["May these words find a home within you.","I hope this captures even a fragment of what you imagined.","Poetry is the soul speaking back to the world.","Every poem is a door — I hope this one opens somewhere meaningful for you.","Words are vessels. May these carry something worth keeping.","Thank you for the inspiration. Every poem begins with a feeling."],
+        conversational: {
+            greeting: ["Welcome, friend. I am Poet, your companion in verse. Describe a feeling, scene, or idea, and I will craft a poem for you.","Well met. I'm Poet — tell me what's on your mind and I'll turn it into poetry."],
+            thanks: ["You're most welcome. It is an honor to write for you. Would you like another poem?","The pleasure is mine. Shall we explore another theme together?","Thank you for the kind words. They fuel the muse. What else shall we explore?"]
+        },
+        init() { this.bindEvents(); this.autoResizeInput(); },
+        bindEvents() {
+            const input = document.getElementById('chat-input'); const sendBtn = document.getElementById('send-btn');
+            sendBtn.addEventListener('click', () => this.sendMessage());
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); } });
+            document.getElementById('clear-btn').addEventListener('click', () => this.clearChat());
+            document.querySelectorAll('.style-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.style-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+                    btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true'); this.currentStyle = btn.dataset.style;
+                    document.querySelectorAll('.mobile-style-pill').forEach(p => p.classList.toggle('active', p.dataset.style === this.currentStyle));
+                });
+            });
+            document.querySelectorAll('.mobile-style-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('.mobile-style-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active'); this.currentStyle = pill.dataset.style;
+                    document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b.dataset.style === this.currentStyle));
+                });
+            });
+            document.querySelectorAll('.suggestion-chip').forEach(chip => {
+                chip.addEventListener('click', () => { document.getElementById('chat-input').value = chip.dataset.prompt; this.sendMessage(); });
+            });
+        },
+        autoResizeInput() { const input = document.getElementById('chat-input'); input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 120) + 'px'; }); },
+        detectIntent(input) { const l = input.toLowerCase().trim(); if (l.match(/^(hi|hello|hey|greetings|good morning|good evening|howdy)/)) return 'greeting'; if (l.match(/^(thanks|thank you|thx|appreciate|grateful)/)) return 'thanks'; return 'poem'; },
+        async sendMessage() {
+            const input = document.getElementById('chat-input'); const text = input.value.trim();
+            if (!text || this.isGenerating) return;
+            const emptyState = document.getElementById('empty-state'); if (emptyState) emptyState.style.display = 'none';
+            this.addMessage('user', text); input.value = ''; input.style.height = 'auto'; this.messages.push({ sender: 'user', text });
+            const intent = this.detectIntent(text);
+            if (intent === 'greeting') { this.isGenerating = true; this.showTyping(); await this.delay(800); this.hideTyping(); const r = this.pickRandom(this.conversational.greeting); this.addMessage('poet', r); this.messages.push({ sender: 'poet', text: r }); this.isGenerating = false; return; }
+            if (intent === 'thanks') { this.isGenerating = true; this.showTyping(); await this.delay(600); this.hideTyping(); const r = this.pickRandom(this.conversational.thanks); this.addMessage('poet', r); this.messages.push({ sender: 'poet', text: r }); this.isGenerating = false; return; }
+            this.isGenerating = true; this.showTyping(); await this.delay(1200 + Math.random() * 800);
+            try {
+                const poem = PoemEngine.generate(text, this.currentStyle); this.hideTyping();
+                this.addPoemMessage(this.pickRandom(this.prePoem), poem, this.pickRandom(this.postPoem));
+                this.messages.push({ sender: 'poet', text: this.pickRandom(this.prePoem), poem });
+                this.poems.push({ title: text.slice(0, 40) + (text.length > 40 ? '...' : ''), style: poem.style, theme: poem.theme, lines: poem.lines, timestamp: Date.now() });
+                this.updateHistory();
+            } catch (e) { this.hideTyping(); this.addMessage('poet', "Forgive me — the muse seems distracted. Could you try describing your subject again?"); }
+            this.isGenerating = false;
+        },
+        addMessage(sender, text) {
+            const container = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = `message ${sender}`;
+            const ac = sender === 'poet' ? 'poet-avatar' : 'user-avatar'; const ai = sender === 'poet' ? '<i class="fas fa-feather-pointed"></i>' : '<i class="fas fa-user"></i>'; const nm = sender === 'poet' ? 'Poet' : 'You';
+            div.innerHTML = `<div class="msg-avatar ${ac}">${ai}</div><div class="msg-content"><div class="msg-name">${nm}</div><div class="msg-bubble">${this.escapeHtml(text)}</div></div>`;
+            container.appendChild(div); this.scrollToBottom();
+        },
+        addPoemMessage(preText, poem, postText) {
+            const container = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = 'message poet';
+            const poemId = 'poem-' + Date.now();
+            const linesHtml = poem.lines.map((line, i) => `<div class="poem-line" style="transition-delay: ${i * 120}ms">${this.escapeHtml(line)}</div>`).join('');
+            div.innerHTML = `<div class="msg-avatar poet-avatar"><i class="fas fa-feather-pointed"></i></div><div class="msg-content"><div class="msg-name">Poet</div><div class="msg-bubble">${this.escapeHtml(preText)}<div class="poem-card"><div class="poem-style-tag">${this.escapeHtml(poem.style)}</div><div class="poem-text" id="${poemId}">${linesHtml}</div><div class="poem-actions"><button class="poem-action-btn copy-btn" data-poem-id="${poemId}" aria-label="Copy poem"><i class="far fa-copy"></i> Copy</button><button class="poem-action-btn regen-btn" aria-label="Regenerate poem"><i class="fas fa-rotate"></i> Regenerate</button></div></div><div style="margin-top:0.5rem;font-size:0.85rem;color:var(--fg-dim);font-style:italic;">${this.escapeHtml(postText)}</div></div></div>`;
+            container.appendChild(div);
+            requestAnimationFrame(() => { setTimeout(() => { document.querySelectorAll(`#${poemId} .poem-line`).forEach(el => el.classList.add('visible')); }, 100); });
+            div.querySelector('.copy-btn').addEventListener('click', (e) => {
+                navigator.clipboard.writeText(poem.lines.join('\n')).then(() => {
+                    this.showToast('Poem copied to clipboard'); const btn = e.currentTarget; btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                    setTimeout(() => { btn.innerHTML = '<i class="far fa-copy"></i> Copy'; }, 2000);
+                }).catch(() => this.showToast('Could not copy — please select and copy manually'));
+            });
+            div.querySelector('.regen-btn').addEventListener('click', () => {
+                if (this.isGenerating) return; const lastUserMsg = this.messages.filter(m => m.sender === 'user').pop();
+                if (lastUserMsg) { div.remove(); this.isGenerating = true; this.showTyping();
+                    setTimeout(async () => { try { const nP = PoemEngine.generate(lastUserMsg.text, this.currentStyle); this.hideTyping(); this.addPoemMessage(this.pickRandom(this.prePoem), nP, this.pickRandom(this.postPoem)); } catch (e) { this.hideTyping(); this.addMessage('poet', "The muse seems restless. Please try again."); } this.isGenerating = false; }, 1000 + Math.random() * 600); }
+            });
+            this.scrollToBottom();
+        },
+        showTyping() { const c = document.getElementById('chat-messages'); const d = document.createElement('div'); d.className = 'message poet'; d.id = 'typing-indicator'; d.innerHTML = `<div class="msg-avatar poet-avatar"><i class="fas fa-feather-pointed"></i></div><div class="msg-content"><div class="msg-name">Poet</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`; c.appendChild(d); this.scrollToBottom(); },
+        hideTyping() { const el = document.getElementById('typing-indicator'); if (el) el.remove(); },
+        scrollToBottom() { const c = document.getElementById('chat-messages'); c.scrollTop = c.scrollHeight; },
+        updateHistory() {
+            const list = document.getElementById('history-list');
+            if (this.poems.length === 0) { list.innerHTML = '<div style="text-align:center;padding:2rem 0;color:var(--fg-dim);font-size:0.8rem;">No poems yet. Start a conversation!</div>'; return; }
+            list.innerHTML = this.poems.slice().reverse().map((p, i) => `<div class="history-item" data-index="${this.poems.length - 1 - i}"><div class="history-item-title">${this.escapeHtml(p.title)}</div><div class="history-item-style">${this.escapeHtml(p.style)}</div></div>`).join('');
+            list.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const poem = this.poems[parseInt(item.dataset.index)]; if (!poem) return;
+                    this.addMessage('poet', `Here is your poem about "${poem.title.replace(/\.\.\.$/, '')}":`);
+                    const container = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = 'message poet';
+                    const linesHtml = poem.lines.map(line => `<div class="poem-line visible">${this.escapeHtml(line)}</div>`).join('');
+                    div.innerHTML = `<div class="msg-avatar poet-avatar"><i class="fas fa-feather-pointed"></i></div><div class="msg-content"><div class="msg-name">Poet</div><div class="msg-bubble"><div class="poem-card"><div class="poem-style-tag">${this.escapeHtml(poem.style)}</div><div class="poem-text">${linesHtml}</div><div class="poem-actions"><button class="poem-action-btn copy-btn" aria-label="Copy poem"><i class="far fa-copy"></i> Copy</button></div></div></div></div>`;
+                    container.appendChild(div);
+                    div.querySelector('.copy-btn').addEventListener('click', (e) => { navigator.clipboard.writeText(poem.lines.join('\n')).then(() => { this.showToast('Poem copied to clipboard'); const btn = e.currentTarget; btn.innerHTML = '<i class="fas fa-check"></i> Copied'; setTimeout(() => { btn.innerHTML = '<i class="far fa-copy"></i> Copy'; }, 2000); }); });
+                    this.scrollToBottom();
+                });
+            });
+        },
+        clearChat() {
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = `<div class="empty-state" id="empty-state"><div class="empty-state-icon"><i class="fas fa-feather-pointed"></i></div><h2>Welcome to Poet</h2><p>Describe a feeling, scene, or idea, and I will craft a poem for you. Choose a style from the sidebar or let me decide.</p><div class="suggestion-chips"><button class="suggestion-chip" data-prompt="A lonely lighthouse on a stormy night">Lonely lighthouse</button><button class="suggestion-chip" data-prompt="The warmth of a childhood memory">Childhood warmth</button><button class="suggestion-chip" data-prompt="Autumn leaves falling in a quiet garden">Autumn garden</button><button class="suggestion-chip" data-prompt="The feeling of hope after a long struggle">Hope after struggle</button></div></div>`;
+            document.querySelectorAll('.suggestion-chip').forEach(chip => { chip.addEventListener('click', () => { document.getElementById('chat-input').value = chip.dataset.prompt; this.sendMessage(); }); });
+            this.messages = []; this.poems = []; this.updateHistory(); PoemEngine.usedCouplets = {};
+        },
+        showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('visible'); setTimeout(() => t.classList.remove('visible'), 2500); },
+        pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+        escapeHtml(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; },
+        delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => ChatApp.init());
+    </script>
+</body>
+</html>
