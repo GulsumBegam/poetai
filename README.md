@@ -47,6 +47,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-purple?style=for-the-badge)](https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-purple?style=for-the-badge)](https://gulsumbegam.github.io/poetai/)
 
 <p align="center">Made with ❤️ and a love for poetry</p>
